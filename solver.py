@@ -66,18 +66,18 @@ def hole_factory(type,idx):
 
 class Solver():
     def __init__(self,equal_position):
-        self.solver = z3.Solver()
+        self.__solver = z3.Solver()
         self.__equal_position = equal_position
         self.holes = [hole_factory(EQUATION_TYPE[equal_position][i],i) for i in range(6)]
         self.model: z3.ModelRef = None
         for h in self.holes:
             if h.is_variable():
                 sv = h.symbol
-                self.solver.add(z3.And(0 <= sv, sv < 10))
-        self.solver.push()
+                self.__solver.add(z3.And(0 <= sv, sv < 10))
+        self.__solver.push()
 
     def check(self):
-        return self.solver.check() == z3.sat
+        return self.__solver.check() == z3.sat
 
     def get_format_expression(self):
         if self.model == None:
@@ -92,7 +92,7 @@ class Solver():
         return tmp[0:self.__equal_position+1] + "=" + tmp[self.__equal_position+1:]
 
     def createModel(self):
-        self.model = self.solver.model()
+        self.model = self.__solver.model()
 
     def add_operand_constraint(self,ope1,ope2=None) -> None:
         st1 = None
@@ -111,7 +111,7 @@ class Solver():
                 stmt = stmt1 * stmt2
             else:
                 stmt = stmt1 / stmt2
-                self.solver.add(z3.And(stmt2 > 0, stmt1%stmt2==0))
+                self.__solver.add(z3.And(stmt2 > 0, stmt1%stmt2==0))
             assert(stmt != None)
             return stmt
 
@@ -185,8 +185,8 @@ class Solver():
 
         assert(st1 != None and st2 != None)
         #print(st1,st2)
-        self.solver.add(st1 == st2)
-        self.solver.push()
+        self.__solver.add(st1 == st2)
+        self.__solver.push()
     
     def add_feedback_constraint(self,check_arr):
         if self.model == None:
@@ -198,20 +198,20 @@ class Solver():
             check = check_arr[i]
             if check == 2:
                 hole.is_reveal = True
-                self.solver.add(hole.symbol == self.model[hole.symbol])
+                self.__solver.add(hole.symbol == self.model[hole.symbol])
             elif check == 1:
                 or_ref = []
                 for h in self.holes:
                     if h.is_variable():
                         v = self.model[hole.symbol]
                         if h == hole:
-                            self.solver.add(z3.Not(h.symbol == v))
+                            self.__solver.add(z3.Not(h.symbol == v))
                         else:
                             or_ref.append(h.symbol == v)
-                self.solver.add(z3.Or(*or_ref))
+                self.__solver.add(z3.Or(*or_ref))
                 
             else:
-                self.solver.add(z3.Not(hole.symbol == self.model[hole.symbol]))
+                self.__solver.add(z3.Not(hole.symbol == self.model[hole.symbol]))
 
         for i in ope_idx:
             hole = self.holes[i]
@@ -232,7 +232,7 @@ class Solver():
                     rev_hole = self.holes[rev_i]
                     rev_hole.set_possibility(hole.current_op,COND_UNUSE)
 
-        self.solver.push()
+        self.__solver.push()
 
     def add_distinct_condition(self):
         t = []
@@ -240,13 +240,16 @@ class Solver():
             if h.is_variable() and not h.is_reveal:
                 t.append(h.symbol)
         if len(t) > 0:
-            self.solver.add(z3.Distinct(*t))
-            self.solver.push()
+            self.__solver.add(z3.Distinct(*t))
+            self.__solver.push()
             return True
         return False
 
-    def pop(self):
-        self.solver.pop()
+    def pop(self,dis_flag):
+        self.__solver.pop(2)
+        if dis_flag:
+            self.__solver.pop()
+        self.__solver.push()
 
     def ope_choices(self,num):
         ope_idx = [i for i in range(6) if EQUATION_TYPE[self.__equal_position][i] == TYPE_OPE]
