@@ -184,36 +184,41 @@ class Solver():
     def add_feedback_constraint(self,check_arr):
         if self.model == None:
             raise Exception("Model is None")
-        for i in range(6):
+        num_idx = [i for i in range(6) if EQUATION_TYPE[self.__equal_position][i] == TYPE_NUM]
+        ope_idx = [i for i in range(6) if EQUATION_TYPE[self.__equal_position][i] == TYPE_OPE]
+        for i in num_idx:
             hole = self.holes[i]
             check = check_arr[i]
-            if hole.is_variable():
-                if check == 2:
-                    hole.is_reveal = True
-                    self.solver.add(hole.symbol == self.model[hole.symbol])
-                elif check == 1:
-                    or_ref = []
-                    for h in self.holes:
-                        if h.is_variable():
-                            v = self.model[hole.symbol]
-                            if h == hole:
-                                self.solver.add(z3.Not(h.symbol == v))
-                            else:
-                                or_ref.append(h.symbol == v)
-                    self.solver.add(z3.Or(*or_ref))
-                    
-                else:
-                    self.solver.add(z3.Not(hole.symbol == self.model[hole.symbol]))
+            if check == 2:
+                hole.is_reveal = True
+                self.solver.add(hole.symbol == self.model[hole.symbol])
+            elif check == 1:
+                or_ref = []
+                for h in self.holes:
+                    if h.is_variable():
+                        v = self.model[hole.symbol]
+                        if h == hole:
+                            self.solver.add(z3.Not(h.symbol == v))
+                        else:
+                            or_ref.append(h.symbol == v)
+                self.solver.add(z3.Or(*or_ref))
+                
             else:
-                num = 0 if i < 3 else 1
-                if check == 2:
-                    self.op_cond[num][hole.current_op] = Solver.COND_USE
-                elif check == 1:
-                    self.op_cond[num][hole.current_op] = Solver.COND_UNUSE
-                    self.op_cond[1-num][hole.current_op] = Solver.COND_USE
-                else:
-                    self.op_cond[num][hole.current_op] = Solver.COND_UNUSE
-                    self.op_cond[1-num][hole.current_op] = Solver.COND_UNUSE
+                self.solver.add(z3.Not(hole.symbol == self.model[hole.symbol]))
+
+        for i in ope_idx:
+            hole = self.holes[i]
+            check = check_arr[i]
+            num = 0 if i < 3 else 1
+            if check == 2:
+                self.op_cond[num][hole.current_op] = Solver.COND_USE
+            elif check == 1:
+                self.op_cond[num][hole.current_op] = Solver.COND_UNUSE
+                self.op_cond[1-num][hole.current_op] = Solver.COND_USE
+            else:
+                self.op_cond[num][hole.current_op] = Solver.COND_UNUSE
+                self.op_cond[1-num][hole.current_op] = Solver.COND_UNUSE
+
         self.solver.push()
 
     def add_distinct_condition(self):
