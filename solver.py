@@ -1,3 +1,4 @@
+from webbrowser import Opera
 import z3
 
 TYPE_NUM = 0
@@ -15,33 +16,23 @@ OPE_SUB = 1
 OPE_MUL = 2
 OPE_DIV = 3
 
-class Hole():
-    def __init__(self,type,idx):
-        self.type = type
-        self.current_op = None
-        self.model = None
+class Number():
+    def __init__(self,idx):
         self.is_reveal = False
-        self.name = "hole" + str(idx)
-        if type == TYPE_NUM:
-            self.symbolic = z3.Int(self.name)
+        self.__symbol = z3.Int("hole" + str(idx))
+    
+    @property
+    def symbol(self):
+        return self.__symbol
     
     def is_variable(self):
-        return self.type == TYPE_NUM
-    
-    def is_operand(self):
-        return self.type == TYPE_OPE
-    
-    def getSymbol(self):
-        if not self.is_variable():
-            print(self.name)
-            raise Exception("Not a symbol")
-        else:
-            return self.symbolic
-    
-    def setOperand(self,ope):
-        self.current_op = ope
-    
-    def getOperandStr(self):
+        return True
+
+class Operand():
+    def __init__(self):
+        self.current_op = None
+
+    def __str__(self):
         if self.current_op == OPE_ADD:
             return "+"
         elif self.current_op == OPE_SUB:
@@ -53,6 +44,15 @@ class Hole():
         else:
             raise Exception("operand unset")
 
+    def is_variable(self):
+        return False
+
+def hole_factory(type,idx):
+    if type == TYPE_NUM:
+        return Number(idx)
+    else:
+        return Operand()
+
 class Solver():
     COND_UNCHECK = 0
     COND_USE = 1
@@ -60,12 +60,12 @@ class Solver():
     def __init__(self,equal_position):
         self.solver = z3.Solver()
         self.__equal_position = equal_position
-        self.holes = [Hole(EQUATION_TYPE[equal_position][i],i) for i in range(6)]
+        self.holes = [hole_factory(EQUATION_TYPE[equal_position][i],i) for i in range(6)]
         self.model: z3.ModelRef = None
         self.op_cond = [[Solver.COND_UNCHECK]*4,[Solver.COND_UNCHECK]*4]
         for h in self.holes:
             if h.is_variable():
-                sv = h.getSymbol()
+                sv = h.symbol
                 self.solver.add(z3.And(0 <= sv, sv < 10))
         self.solver.push()
 
@@ -79,9 +79,9 @@ class Solver():
         #print(self.model)
         for h in self.holes:
             if h.is_variable():
-                tmp += str(self.model[h.getSymbol()].as_long())
+                tmp += str(self.model[h.symbol].as_long())
             else:
-                tmp += h.getOperandStr()
+                tmp += str(h)
         return tmp[0:self.__equal_position+1] + "=" + tmp[self.__equal_position+1:]
 
     def createModel(self):
@@ -112,7 +112,7 @@ class Solver():
         if self.__equal_position == 0:
             if ope2 == None:
                 raise Exception("ope2 is need")
-            a,b,c,d = [self.holes[i].getSymbol() for i in num_idx]
+            a,b,c,d = [self.holes[i].symbol for i in num_idx]
             
             self.holes[ope_idx[0]].current_op = ope1
             self.holes[ope_idx[1]].current_op = ope2
@@ -129,7 +129,7 @@ class Solver():
 
         # ab = cd ? e
         elif self.__equal_position == 1:
-            a,b,c,d,e = [self.holes[i].getSymbol() for i in num_idx]
+            a,b,c,d,e = [self.holes[i].symbol for i in num_idx]
             self.holes[ope_idx[0]].current_op = ope1
             a_deca = stmt_generator(a,10,OPE_MUL)
             st1 = stmt_generator(a_deca,b,OPE_ADD)
@@ -142,7 +142,7 @@ class Solver():
         elif self.__equal_position == 2:
             if ope2 == None:
                 raise Exception("ope2 is need")
-            a,b,c,d = [self.holes[i].getSymbol() for i in num_idx]
+            a,b,c,d = [self.holes[i].symbol for i in num_idx]
             self.holes[ope_idx[0]].current_op = ope1
             self.holes[ope_idx[1]].current_op = ope2
             st1 = stmt_generator(a,b,ope1)
@@ -150,7 +150,7 @@ class Solver():
 
         # ab ? c = de
         elif self.__equal_position == 3:
-            a,b,c,d,e = [self.holes[i].getSymbol() for i in num_idx]
+            a,b,c,d,e = [self.holes[i].symbol for i in num_idx]
             self.holes[ope_idx[0]].current_op = ope1
             a_deca = stmt_generator(a,10,OPE_MUL)
             ab = stmt_generator(a_deca,b,OPE_ADD)
@@ -163,7 +163,7 @@ class Solver():
         elif self.__equal_position == 4:
             if ope2 == None:
                 raise Exception("ope2 is need")
-            a,b,c,d = [self.holes[i].getSymbol() for i in num_idx]
+            a,b,c,d = [self.holes[i].symbol for i in num_idx]
             self.holes[ope_idx[0]].current_op = ope1
             self.holes[ope_idx[1]].current_op = ope2
             # 計算順序が逆転する場合
@@ -190,20 +190,20 @@ class Solver():
             if hole.is_variable():
                 if check == 2:
                     hole.is_reveal = True
-                    self.solver.add(hole.symbolic == self.model[hole.symbolic])
+                    self.solver.add(hole.symbol == self.model[hole.symbol])
                 elif check == 1:
                     or_ref = []
                     for h in self.holes:
                         if h.is_variable():
-                            v = self.model[hole.symbolic]
+                            v = self.model[hole.symbol]
                             if h == hole:
-                                self.solver.add(z3.Not(h.symbolic == v))
+                                self.solver.add(z3.Not(h.symbol == v))
                             else:
-                                or_ref.append(h.symbolic == v)
+                                or_ref.append(h.symbol == v)
                     self.solver.add(z3.Or(*or_ref))
                     
                 else:
-                    self.solver.add(z3.Not(hole.symbolic == self.model[hole.symbolic]))
+                    self.solver.add(z3.Not(hole.symbol == self.model[hole.symbol]))
             else:
                 num = 0 if i < 3 else 1
                 if check == 2:
@@ -220,7 +220,7 @@ class Solver():
         t = []
         for h in self.holes:
             if h.is_variable() and not h.is_reveal:
-                t.append(h.getSymbol())
+                t.append(h.symbol)
         if len(t) > 0:
             self.solver.add(z3.Distinct(*t))
             self.solver.push()
