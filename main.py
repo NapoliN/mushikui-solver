@@ -275,7 +275,12 @@ for i in range(10):
                 expr = s.get_format_expression()
                 print(expr)
                 fb = request.send_answer(expr)
-                print(f"check = {fb}")
+
+                print("check=",end="")
+                for c in fb:
+                    print("🟩" if c == 2 else "🟨" if c == 1 else "⬜",end="")
+                print("")
+
                 if fb == [2,2,2,2,2,2]:
                     clear = True
                 s.add_feedback_constraint(fb)
