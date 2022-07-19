@@ -1,4 +1,3 @@
-from webbrowser import Opera
 import z3
 
 TYPE_NUM = 0
@@ -16,6 +15,10 @@ OPE_SUB = 1
 OPE_MUL = 2
 OPE_DIV = 3
 
+COND_UNCHECK = 0
+COND_USE = 1
+COND_UNUSE = 2
+
 class Number():
     def __init__(self,idx):
         self.is_reveal = False
@@ -31,6 +34,7 @@ class Number():
 class Operand():
     def __init__(self):
         self.current_op = None
+        self.__possibility = [COND_UNCHECK]*4
 
     def __str__(self):
         if self.current_op == OPE_ADD:
@@ -46,6 +50,13 @@ class Operand():
 
     def is_variable(self):
         return False
+    
+    def set_possibility(self,ope,cond):
+        self.__possibility[ope] = cond
+    
+    @property
+    def possiblity(self):
+        return tuple(self.__possibility)
 
 def hole_factory(type,idx):
     if type == TYPE_NUM:
@@ -54,15 +65,11 @@ def hole_factory(type,idx):
         return Operand()
 
 class Solver():
-    COND_UNCHECK = 0
-    COND_USE = 1
-    COND_UNUSE = 2
     def __init__(self,equal_position):
         self.solver = z3.Solver()
         self.__equal_position = equal_position
         self.holes = [hole_factory(EQUATION_TYPE[equal_position][i],i) for i in range(6)]
         self.model: z3.ModelRef = None
-        self.op_cond = [[Solver.COND_UNCHECK]*4,[Solver.COND_UNCHECK]*4]
         for h in self.holes:
             if h.is_variable():
                 sv = h.symbol
@@ -211,13 +218,19 @@ class Solver():
             check = check_arr[i]
             num = 0 if i < 3 else 1
             if check == 2:
-                self.op_cond[num][hole.current_op] = Solver.COND_USE
+                hole.set_possibility(hole.current_op,COND_USE)
             elif check == 1:
-                self.op_cond[num][hole.current_op] = Solver.COND_UNUSE
-                self.op_cond[1-num][hole.current_op] = Solver.COND_USE
+                hole.set_possibility(hole.current_op,COND_UNUSE)
+                if(len(ope_idx) > 1):
+                    rev_i = ope_idx[0] if i == ope_idx[1] else ope_idx[1]
+                    rev_hole = self.holes[rev_i]
+                    rev_hole.set_possibility(hole.current_op,COND_USE)
             else:
-                self.op_cond[num][hole.current_op] = Solver.COND_UNUSE
-                self.op_cond[1-num][hole.current_op] = Solver.COND_UNUSE
+                hole.set_possibility(hole.current_op,COND_UNUSE)
+                if(len(ope_idx) > 1):
+                    rev_i = ope_idx[0] if i == ope_idx[1] else ope_idx[1]
+                    rev_hole = self.holes[rev_i]
+                    rev_hole.set_possibility(hole.current_op,COND_UNUSE)
 
         self.solver.push()
 
@@ -236,8 +249,12 @@ class Solver():
         self.solver.pop()
 
     def ope_choices(self,num):
-        arr = self.op_cond[num]
-        if Solver.COND_USE in arr:
-            return [arr.index(Solver.COND_USE)]
+        ope_idx = [i for i in range(6) if EQUATION_TYPE[self.__equal_position][i] == TYPE_OPE]
+        if len(ope_idx) == 1 and num == 1:
+            return [None]
+
+        arr = self.holes[ope_idx[num]].possiblity
+        if COND_USE in arr:
+            return [arr.index(COND_USE)]
         else:
-            return [i for i in range(4) if arr[i] == Solver.COND_UNCHECK]
+            return [i for i in range(4) if arr[i] == COND_UNCHECK]

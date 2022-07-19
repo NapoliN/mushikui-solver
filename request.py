@@ -3,7 +3,7 @@ import requests
 import json
 from enum import Enum
 
-API_URL = "https://api.mushikui.trasta.dev/expression/20220719"
+API_URL = "https://api.mushikui.trasta.dev/expression/20220717"
 
 #OPE_ADD = 11
 #OPE_SUB = 12
