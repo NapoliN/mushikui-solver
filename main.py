@@ -15,12 +15,12 @@ EQUATION_TYPE = (
     (TYPE_NUM,TYPE_OPE,TYPE_NUM,TYPE_OPE,TYPE_NUM,TYPE_NUM),
 )
 
-class Hole():
+OPE_ADD = 0
+OPE_SUB = 1
+OPE_MUL = 2
+OPE_DIV = 3
 
-    OPE_ADD = 0
-    OPE_SUB = 1
-    OPE_MUL = 2
-    OPE_DIV = 3
+class Hole():
     def __init__(self,type,idx):
         self.type = type
         self.current_op = None
@@ -47,22 +47,18 @@ class Hole():
         self.current_op = ope
     
     def getOperandStr(self):
-        if self.current_op == Hole.OPE_ADD:
+        if self.current_op == OPE_ADD:
             return "+"
-        elif self.current_op == Hole.OPE_SUB:
+        elif self.current_op == OPE_SUB:
             return "-"
-        elif self.current_op == Hole.OPE_MUL:
+        elif self.current_op == OPE_MUL:
             return "*"
-        elif self.current_op == Hole.OPE_DIV:
+        elif self.current_op == OPE_DIV:
             return "/"
         else:
             raise Exception("operand unset")
 
 class Solver():
-    OPE_ADD = 0
-    OPE_SUB = 1
-    OPE_MUL = 2
-    OPE_DIV = 3
     COND_UNCHECK = 0
     COND_USE = 1
     COND_UNUSE = 2
@@ -105,11 +101,11 @@ class Solver():
         # statement2個とoperandから新たなstatementを生成
         def stmt_generator(stmt1,stmt2,operand_type):
             stmt = None
-            if operand_type == Solver.OPE_ADD:
+            if operand_type == OPE_ADD:
                 stmt = stmt1 + stmt2
-            elif operand_type == Solver.OPE_SUB:
+            elif operand_type == OPE_SUB:
                 stmt = stmt1 - stmt2
-            elif operand_type == Solver.OPE_MUL:
+            elif operand_type == OPE_MUL:
                 stmt = stmt1 * stmt2
             else:
                 stmt = stmt1 / stmt2
@@ -127,7 +123,7 @@ class Solver():
             self.holes[ope_idx[1]].current_op = ope2
             st1 = a
             # 計算順序が逆転する場合
-            if (ope1 == Solver.OPE_ADD or ope1 == Solver.OPE_SUB) and (ope2 == Solver.OPE_MUL or ope2 == Solver.OPE_DIV):
+            if (ope1 == OPE_ADD or ope1 == OPE_SUB) and (ope2 == OPE_MUL or ope2 == OPE_DIV):
                 tmp = stmt_generator(c,d,ope2)
                 st2 = stmt_generator(b,tmp,ope1)
                 
@@ -140,11 +136,11 @@ class Solver():
         elif self.__equal_position == 1:
             a,b,c,d,e = [self.holes[i].getSymbol() for i in num_idx]
             self.holes[ope_idx[0]].current_op = ope1
-            a_deca = stmt_generator(a,10,Solver.OPE_MUL)
-            st1 = stmt_generator(a_deca,b,Solver.OPE_ADD)
+            a_deca = stmt_generator(a,10,OPE_MUL)
+            st1 = stmt_generator(a_deca,b,OPE_ADD)
 
-            c_deca = stmt_generator(c,10,Solver.OPE_MUL)
-            cd = stmt_generator(c_deca,d,Solver.OPE_ADD)
+            c_deca = stmt_generator(c,10,OPE_MUL)
+            cd = stmt_generator(c_deca,d,OPE_ADD)
             st2 = stmt_generator(cd,e,ope1)
 
         # a ? b = c ? d
@@ -161,12 +157,12 @@ class Solver():
         elif self.__equal_position == 3:
             a,b,c,d,e = [self.holes[i].getSymbol() for i in num_idx]
             self.holes[ope_idx[0]].current_op = ope1
-            a_deca = stmt_generator(a,10,Solver.OPE_MUL)
-            ab = stmt_generator(a_deca,b,Solver.OPE_ADD)
+            a_deca = stmt_generator(a,10,OPE_MUL)
+            ab = stmt_generator(a_deca,b,OPE_ADD)
             st1 = stmt_generator(ab,c,ope1)
 
-            d_deca = stmt_generator(d,10,Solver.OPE_MUL)
-            st2 = stmt_generator(d_deca,e,Solver.OPE_ADD)
+            d_deca = stmt_generator(d,10,OPE_MUL)
+            st2 = stmt_generator(d_deca,e,OPE_ADD)
 
         # a ? b ? c = d
         elif self.__equal_position == 4:
@@ -176,7 +172,7 @@ class Solver():
             self.holes[ope_idx[0]].current_op = ope1
             self.holes[ope_idx[1]].current_op = ope2
             # 計算順序が逆転する場合
-            if (ope1 == Solver.OPE_ADD or ope1 == Solver.OPE_SUB) and (ope2 == Solver.OPE_MUL or ope2 == Solver.OPE_DIV):
+            if (ope1 == OPE_ADD or ope1 == OPE_SUB) and (ope2 == OPE_MUL or ope2 == OPE_DIV):
                 tmp = stmt_generator(b,c,ope2)
                 st1 = stmt_generator(a,tmp,ope1)
             # 左から右に計算してよい場合
