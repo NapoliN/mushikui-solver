@@ -128,8 +128,8 @@ class Solver():
             st1 = a
             # 計算順序が逆転する場合
             if (ope1 == Solver.OPE_ADD or ope1 == Solver.OPE_SUB) and (ope2 == Solver.OPE_MUL or ope2 == Solver.OPE_DIV):
-                tmp = stmt_generator(c,d,ope1)
-                st2 = stmt_generator(b,tmp,ope2)
+                tmp = stmt_generator(c,d,ope2)
+                st2 = stmt_generator(b,tmp,ope1)
                 
             # 左から右に計算してよい場合
             else:
