@@ -2,6 +2,7 @@ import z3
 
 TYPE_NUM = 0
 TYPE_OPE = 1
+TYPE_UND = 2
 EQUATION_TYPE = (
     (TYPE_NUM,TYPE_NUM,TYPE_OPE,TYPE_NUM,TYPE_OPE,TYPE_NUM),
     (TYPE_NUM,TYPE_NUM,TYPE_NUM,TYPE_NUM,TYPE_OPE,TYPE_NUM),
@@ -19,22 +20,26 @@ COND_UNCHECK = 0
 COND_USE = 1
 COND_UNUSE = 2
 
-class Number():
-    def __init__(self,idx):
+class Hole():
+    def __init__(self,type,idx):
+        self.type = type
+        self.__number_symbol = z3.Int("hole" + str(idx))
+        self.__operand_possibility = [COND_UNCHECK] * 4
         self.is_reveal = False
-        self.__symbol = z3.Int("hole" + str(idx))
     
     @property
-    def symbol(self):
-        return self.__symbol
-    
-    def is_variable(self):
-        return True
+    def possiblity(self):
+        return tuple(self.__operand_possibility)
 
-class Operand():
-    def __init__(self):
-        self.current_op = None
-        self.__possibility = [COND_UNCHECK]*4
+    @property
+    def symbol(self):
+        return self.__number_symbol
+
+    def is_variable(self):
+        return self.type == TYPE_NUM
+    
+    def set_possibility(self,ope,cond):
+        self.__operand_possibility[ope] = cond
 
     def __str__(self):
         if self.current_op == OPE_ADD:
@@ -48,27 +53,11 @@ class Operand():
         else:
             raise Exception("operand unset")
 
-    def is_variable(self):
-        return False
-    
-    def set_possibility(self,ope,cond):
-        self.__possibility[ope] = cond
-    
-    @property
-    def possiblity(self):
-        return tuple(self.__possibility)
-
-def hole_factory(type,idx):
-    if type == TYPE_NUM:
-        return Number(idx)
-    else:
-        return Operand()
-
 class Solver():
     def __init__(self,equal_position):
         self.__solver = z3.Solver()
         self.__equal_position = equal_position
-        self.holes = [hole_factory(EQUATION_TYPE[equal_position][i],i) for i in range(6)]
+        self.holes = [Hole(EQUATION_TYPE[equal_position][i],i) for i in range(6)]
         self.model: z3.ModelRef = None
         for h in self.holes:
             if h.is_variable():
@@ -116,6 +105,7 @@ class Solver():
             return stmt
 
         # a = b ? c ? d
+        # a = bc ? de
         if self.__equal_position == 0:
             if ope2 == None:
                 raise Exception("ope2 is need")
@@ -153,9 +143,10 @@ class Solver():
             self.holes[ope_idx[0]].current_op = ope1
             self.holes[ope_idx[1]].current_op = ope2
             st1 = stmt_generator(a,b,ope1)
-            st2 = stmt_generator(a,b,ope2)
+            st2 = stmt_generator(c,d,ope2)
 
         # ab ? c = de
+        # a ? bc = de
         elif self.__equal_position == 3:
             a,b,c,d,e = [self.holes[i].symbol for i in num_idx]
             self.holes[ope_idx[0]].current_op = ope1
@@ -167,6 +158,7 @@ class Solver():
             st2 = stmt_generator(d_deca,e,OPE_ADD)
 
         # a ? b ? c = d
+        # ab ? cd = e
         elif self.__equal_position == 4:
             if ope2 == None:
                 raise Exception("ope2 is need")
